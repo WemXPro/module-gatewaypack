@@ -32,13 +32,13 @@ class Monobank implements PaymentGatewayInterface
         }
         if (strtolower($data['type']) == 'statementitem') {
             if (!isset($data['data']['statementItem'])) {
-                self::log('Payment processing error: missing statementItem', 'error');
+//                self::log('Payment processing error: missing statementItem', 'error');
                 return;
             }
 
             $statementItem = $data['data']['statementItem'];
             if (!isset($statementItem['comment']) || !isset($statementItem['amount'])) {
-                self::log('Payment processing error: missing comment or amount', 'error');
+//                self::log('Payment processing error: missing comment or amount', 'error');
                 return;
             }
 
@@ -62,8 +62,6 @@ class Monobank implements PaymentGatewayInterface
             } else {
                 self::log('Payment processing error: amount mismatch', 'error');
             }
-        } else {
-            self::log('Payment processing error: unsupported type', 'error');
         }
     }
 
