@@ -1,0 +1,13 @@
+{
+    "name": "GatewayPack",
+    "alias": "gatewaypack",
+    "description": "Gateway Pack",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\GatewayPack\\Providers\\GatewayPackServiceProvider"
+    ],
+    "files": [],
+    "type": "gateway",
+    "class": "Modules\\GatewayPack\\Entities\\GatewayPack"
+}

@@ -1,0 +1,23 @@
+{
+    "name": "gigabait/gatewaypack",
+    "description": "",
+    "authors": [
+        {
+            "name": "GIGABAIT",
+            "email": "xgigabaitx@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\GatewayPack\\": ""
+        }
+    }
+}
