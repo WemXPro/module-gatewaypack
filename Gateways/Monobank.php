@@ -109,6 +109,6 @@ class Monobank implements PaymentGatewayInterface
     }
     protected static function log(string $message, string $level = 'info'): void
     {
-        ErrorLog("(Monobank) {$message}", $level);
+        ErrorLog("Monobank", $message, $level);
     }
 }
