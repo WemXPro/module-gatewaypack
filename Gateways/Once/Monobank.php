@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\GatewayPack\Gateways;
+namespace Modules\GatewayPack\Gateways\Once;
 
 use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
@@ -27,24 +27,20 @@ class Monobank implements PaymentGatewayInterface
         // Checking the availability of the necessary data in the request
         $data = $request->all();
         if (!isset($data['type'])) {
-//            self::log('Payment processing error: missing type', 'error');
             return;
         }
         if (strtolower($data['type']) == 'statementitem') {
             if (!isset($data['data']['statementItem'])) {
-//                self::log('Payment processing error: missing statementItem', 'error');
                 return;
             }
 
             $statementItem = $data['data']['statementItem'];
             if (!isset($statementItem['comment']) || !isset($statementItem['amount'])) {
-//                self::log('Payment processing error: missing comment or amount', 'error');
                 return;
             }
 
             // Skip processing if the amount is negative
             if ($statementItem['amount'] < 0) {
-//                self::log('Negative amount, no processing needed');
                 return;
             }
 
@@ -77,11 +73,12 @@ class Monobank implements PaymentGatewayInterface
 
     public static function checkSubscription(Gateway $gateway, $subscriptionId): bool
     {
+        // Not supported
         return false;
     }
     public static function processRefund(Payment $payment, array $data)
     {
-
+        // Not supported
     }
     public static function endpoint(): string
     {

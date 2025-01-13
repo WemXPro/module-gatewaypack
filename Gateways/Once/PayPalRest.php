@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\GatewayPack\Gateways;
+namespace Modules\GatewayPack\Gateways\Once;
 
 use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
@@ -120,8 +120,7 @@ class PayPalRest implements PaymentGatewayInterface
     {
         $apiUrl = self::getApiUrl($gateway) . '/v1/oauth2/token';
         $response = Http::withBasicAuth($gateway->config['client_id'], $gateway->config['client_secret'])
-            ->asForm()
-            ->post($apiUrl, ['grant_type' => 'client_credentials']);
+            ->asForm()->post($apiUrl, ['grant_type' => 'client_credentials']);
 
         if ($response->successful()) {
             return $response['access_token'] ?? null;
@@ -133,6 +132,7 @@ class PayPalRest implements PaymentGatewayInterface
 
     public static function checkSubscription(Gateway $gateway, $subscriptionId): bool
     {
+        // Not supported
         return false;
     }
 

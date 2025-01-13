@@ -2,8 +2,8 @@
 
 namespace Modules\GatewayPack\Entities;
 
-use Modules\GatewayPack\Gateways\Monobank;
-use Modules\GatewayPack\Gateways\PayPalRest;
+use Modules\GatewayPack\Gateways\Once\Monobank;
+use Modules\GatewayPack\Gateways\Once\PayPalRest;
 
 class GatewayPack
 {
