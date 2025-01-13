@@ -6,18 +6,39 @@ use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
 use App\Models\Payment;
 use Illuminate\Http\Request;
-use Modules\GatewayPack\Traits\CommonPaymentGateway;
+use Modules\GatewayPack\Traits\HelperGateway;
 
 class Paysafecard implements PaymentGatewayInterface
 {
-    use CommonPaymentGateway;
+    use HelperGateway;
 
     public static string $apiUrl = 'https://api.paysafecard.com';
     public static string $sandboxUrl = 'https://apitest.paysafecard.com';
 
-    public static function getApiUrl(Gateway $gateway): string
+    public static function endpoint(): string
     {
-        return $gateway->config['test_mode'] ? self::$sandboxUrl : self::$apiUrl;
+        return 'paysafecard';
+    }
+
+    public static function getConfigMerge(): array
+    {
+        return [
+            'api_key' => '',
+            'test_mode' => true,
+        ];
+    }
+
+    public static function drivers(): array
+    {
+        return [
+            'Paysafecard' => [
+                'driver' => 'Paysafecard',
+                'type' => 'once',
+                'class' => self::class,
+                'endpoint' => self::endpoint(),
+                'refund_support' => false,
+            ],
+        ];
     }
 
     public static function processGateway(Gateway $gateway, Payment $payment)
@@ -90,29 +111,9 @@ class Paysafecard implements PaymentGatewayInterface
         return self::errorRedirect('Payment verification failed');
     }
 
-    public static function endpoint(): string
+    private static function getApiUrl(Gateway $gateway): string
     {
-        return 'paysafecard';
+        return $gateway->config['test_mode'] ? self::$sandboxUrl : self::$apiUrl;
     }
 
-    public static function getConfigMerge(): array
-    {
-        return [
-            'api_key' => '',
-            'test_mode' => true,
-        ];
-    }
-
-    public static function drivers(): array
-    {
-        return [
-            'Paysafecard' => [
-                'driver' => 'Paysafecard',
-                'type' => 'once',
-                'class' => self::class,
-                'endpoint' => self::endpoint(),
-                'refund_support' => false,
-            ],
-        ];
-    }
 }

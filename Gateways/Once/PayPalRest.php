@@ -6,18 +6,40 @@ use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
 use App\Models\Payment;
 use Illuminate\Http\Request;
-use Modules\GatewayPack\Traits\CommonPaymentGateway;
+use Modules\GatewayPack\Traits\HelperGateway;
 
 class PayPalRest implements PaymentGatewayInterface
 {
-    use CommonPaymentGateway;
+    use HelperGateway;
 
     public static string $apiUrl = 'https://api.paypal.com';
     public static string $sandboxUrl = 'https://api.sandbox.paypal.com';
 
-    public static function getApiUrl(Gateway $gateway): string
+    public static function endpoint(): string
     {
-        return $gateway->config['test_mode'] ? self::$sandboxUrl : self::$apiUrl;
+        return 'paypal-rest';
+    }
+
+    public static function getConfigMerge(): array
+    {
+        return [
+            'client_id' => '',
+            'client_secret' => '',
+            'test_mode' => true,
+        ];
+    }
+
+    public static function drivers(): array
+    {
+        return [
+            'PayPalRest' => [
+                'driver' => 'PayPalRest',
+                'type' => 'once',
+                'class' => self::class,
+                'endpoint' => self::endpoint(),
+                'refund_support' => false,
+            ],
+        ];
     }
 
     public static function processGateway(Gateway $gateway, Payment $payment)
@@ -118,6 +140,11 @@ class PayPalRest implements PaymentGatewayInterface
         return self::errorRedirect('Payment verification failed');
     }
 
+    private static function getApiUrl(Gateway $gateway): string
+    {
+        return $gateway->config['test_mode'] ? self::$sandboxUrl : self::$apiUrl;
+    }
+
     private static function getAccessToken(Gateway $gateway): ?string
     {
         $apiUrl = self::getApiUrl($gateway) . '/v1/oauth2/token';
@@ -125,30 +152,5 @@ class PayPalRest implements PaymentGatewayInterface
         return $response->successful() ? $response['access_token'] ?? null : null;
     }
 
-    public static function endpoint(): string
-    {
-        return 'paypal-rest';
-    }
 
-    public static function getConfigMerge(): array
-    {
-        return [
-            'client_id' => '',
-            'client_secret' => '',
-            'test_mode' => true,
-        ];
-    }
-
-    public static function drivers(): array
-    {
-        return [
-            'PayPalRest' => [
-                'driver' => 'PayPalRest',
-                'type' => 'once',
-                'class' => self::class,
-                'endpoint' => self::endpoint(),
-                'refund_support' => false,
-            ],
-        ];
-    }
 }

@@ -6,11 +6,40 @@ use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
 use App\Models\Payment;
 use Illuminate\Http\Request;
-use Modules\GatewayPack\Traits\CommonPaymentGateway;
+use Modules\GatewayPack\Traits\HelperGateway;
 
 class Monobank implements PaymentGatewayInterface
 {
-    use CommonPaymentGateway;
+    use HelperGateway;
+
+    public static string $webhookUrl = 'https://api.monobank.ua/personal/webhook';
+
+    public static function endpoint(): string
+    {
+        return 'monobank';
+    }
+
+    public static function getConfigMerge(): array
+    {
+        return [
+            'token' => '',
+            'banka_url' => '',
+        ];
+    }
+
+    public static function drivers(): array
+    {
+        return [
+            'MonoBank' => [
+                'driver' => 'MonoBank',
+                'type' => 'once',
+                'class' => self::class,
+                'endpoint' => self::endpoint(),
+                'refund_support' => false,
+                'blade_edit_path' => 'gatewaypack::monobank',
+            ],
+        ];
+    }
 
     public static function processGateway(Gateway $gateway, Payment $payment)
     {
@@ -63,39 +92,10 @@ class Monobank implements PaymentGatewayInterface
         }
     }
 
-    public static function setWebhook(Gateway $gateway): bool
+    private static function setWebhook(Gateway $gateway): bool
     {
-        $url = 'https://api.monobank.ua/personal/webhook';
-        $data = [
-            'webHookUrl' => self::getReturnUrl(),
-        ];
-
-        $response = self::sendHttpRequest('POST', $url, $data, $gateway->config['token']);
-
+        $data = ['webHookUrl' => self::getReturnUrl()];
+        $response = self::sendHttpRequest('POST', self::$webhookUrl, $data, $gateway->config['token']);
         return $response->status() === 200;
-    }
-    public static function endpoint(): string
-    {
-        return 'monobank';
-    }
-    public static function getConfigMerge(): array
-    {
-        return [
-            'token' => '',
-            'banka_url' => '',
-        ];
-    }
-    public static function drivers(): array
-    {
-        return [
-            'MonoBank' => [
-                'driver' => 'MonoBank',
-                'type' => 'once',
-                'class' => self::class,
-                'endpoint' => self::endpoint(),
-                'refund_support' => false,
-                'blade_edit_path' => 'gatewaypack::monobank',
-            ],
-        ];
     }
 }

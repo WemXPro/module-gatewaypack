@@ -6,7 +6,7 @@ use App\Models\Gateways\Gateway;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Http;
 
-trait CommonPaymentGateway
+trait HelperGateway
 {
 
     protected static function getGatewayByEndpoint(): Gateway
