@@ -14,6 +14,11 @@ trait CommonPaymentGateway
         return Gateway::where('endpoint', self::endpoint())->first();
     }
 
+    protected static function errorRedirect(string $message): string
+    {
+       return redirect()->route('dashboard')->with('error', $message);
+    }
+
     protected static function getReturnUrl(): string
     {
         return route('payment.return', ['gateway' => self::endpoint()]);

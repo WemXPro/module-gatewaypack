@@ -30,7 +30,7 @@ class PayPalRest implements PaymentGatewayInterface
 
         if (!$token) {
             self::log('Error obtaining access token', 'error');
-            return redirect()->route('payment.cancel', ['payment' => $payment->id]);
+            return self::getCancelUrl($payment);
         }
 
         $payload = [
@@ -60,7 +60,7 @@ class PayPalRest implements PaymentGatewayInterface
         }
 
         self::log('Error creating PayPal payment: ' . $response->body(), 'error');
-        return redirect()->route('payment.cancel', ['payment' => $payment->id]);
+        return self::getCancelUrl($payment);
     }
 
     public static function returnGateway(Request $request)
@@ -71,7 +71,7 @@ class PayPalRest implements PaymentGatewayInterface
 
         if (!$paymentId || !$payerId) {
             self::log('Missing parameters', 'error');
-            return redirect()->route('dashboard')->with('error', 'Error processing payment');
+            return self::errorRedirect('Missing parameters');
         }
 
         $apiUrl = self::getApiUrl($gateway) . '/v1/payments/payment/' . $paymentId . '/execute';
@@ -79,7 +79,7 @@ class PayPalRest implements PaymentGatewayInterface
 
         if (!$token) {
             self::log('Error obtaining access token', 'error');
-            return redirect()->route('dashboard')->with('error', 'Error processing payment');
+            return self::errorRedirect('Error processing payment');
         }
 
         $response = self::sendHttpRequest('POST', $apiUrl, ['payer_id' => $payerId], $token);
@@ -92,30 +92,30 @@ class PayPalRest implements PaymentGatewayInterface
 
             if (!$payment) {
                 self::log('Payment not found', 'error');
-                return redirect()->route('payment.cancel', ['payment' => $payment->id]);
+                return self::getCancelUrl($payment);
             }
 
             if ($payment->status === 'paid') {
                 self::log('Payment already completed', 'info');
-                return redirect()->route('payment.success', ['payment' => $payment->id]);
+                return self::getSucceedUrl($payment);
             }
 
             if ($payment->currency !== $currency) {
                 self::log('Currency mismatch', 'error');
-                return redirect()->route('payment.cancel', ['payment' => $payment->id]);
+                return self::getCancelUrl($payment);
             }
 
             if ((float) $payment->amount === (float) $amount) {
                 $payment->completed($payment->id, $response->json());
-                return redirect()->route('payment.success', ['payment' => $payment->id]);
+                return self::getSucceedUrl($payment);
             } else {
                 self::log('Amount mismatch', 'error');
-                return redirect()->route('payment.cancel', ['payment' => $payment->id]);
+                return self::getCancelUrl($payment);
             }
         }
 
         self::log('Payment verification failed: ' . $response->body(), 'error');
-        return redirect()->route('dashboard')->with('error', 'Payment verification failed');
+        return self::errorRedirect('Payment verification failed');
     }
 
     private static function getAccessToken(Gateway $gateway): ?string

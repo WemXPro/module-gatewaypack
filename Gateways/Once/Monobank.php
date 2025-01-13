@@ -21,7 +21,7 @@ class Monobank implements PaymentGatewayInterface
             return redirect()->away($redirectUrl);
         }
         self::log('Error create webhook', 'error');
-        return redirect()->route('payment.cancel', ['payment' => $payment->id]);
+        return self::getCancelUrl($payment);
     }
 
     public static function returnGateway(Request $request): void
