@@ -6,10 +6,12 @@ use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
 use App\Models\Payment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Modules\GatewayPack\Traits\CommonPaymentGateway;
 
 class PayPalRest implements PaymentGatewayInterface
 {
+    use CommonPaymentGateway;
+
     public static string $apiUrl = 'https://api.paypal.com';
     public static string $sandboxUrl = 'https://api.sandbox.paypal.com';
 
@@ -43,12 +45,12 @@ class PayPalRest implements PaymentGatewayInterface
                 'invoice_number' => $payment->id,
             ]],
             'redirect_urls' => [
-                'return_url' => route('payment.return', ['gateway' => $gateway->endpoint]),
-                'cancel_url' => route('payment.cancel', ['payment' => $payment->id]),
+                'return_url' => self::getReturnUrl(),
+                'cancel_url' => self::getCancelUrl($payment),
             ],
         ];
 
-        $response = Http::withToken($token)->post($apiUrl, $payload);
+        $response = self::sendHttpRequest('POST', $apiUrl, $payload, $token);
 
         if ($response->successful() && isset($response['links'])) {
             $approvalLink = collect($response['links'])->firstWhere('rel', 'approval_url')['href'] ?? null;
@@ -65,10 +67,10 @@ class PayPalRest implements PaymentGatewayInterface
     {
         $paymentId = $request->input('paymentId');
         $payerId = $request->input('PayerID');
-        $gateway = Gateway::where('endpoint', self::endpoint())->first();
+        $gateway = self::getGatewayByEndpoint();
 
-        if (!$paymentId || !$payerId || !$gateway) {
-            self::log('PayPal return: Missing parameters', 'error');
+        if (!$paymentId || !$payerId) {
+            self::log('Missing parameters', 'error');
             return redirect()->route('dashboard')->with('error', 'Error processing payment');
         }
 
@@ -80,7 +82,7 @@ class PayPalRest implements PaymentGatewayInterface
             return redirect()->route('dashboard')->with('error', 'Error processing payment');
         }
 
-        $response = Http::withToken($token)->post($apiUrl, ['payer_id' => $payerId]);
+        $response = self::sendHttpRequest('POST', $apiUrl, ['payer_id' => $payerId], $token);
 
         if ($response->successful() && isset($response['transactions'])) {
             $amount = $response['transactions'][0]['amount']['total'] ?? null;
@@ -89,17 +91,17 @@ class PayPalRest implements PaymentGatewayInterface
             $payment = Payment::find($response['transactions'][0]['invoice_number']);
 
             if (!$payment) {
-                self::log('PayPal return: Payment not found', 'error');
+                self::log('Payment not found', 'error');
                 return redirect()->route('payment.cancel', ['payment' => $payment->id]);
             }
 
             if ($payment->status === 'paid') {
-                self::log('PayPal return: Payment already completed', 'info');
+                self::log('Payment already completed', 'info');
                 return redirect()->route('payment.success', ['payment' => $payment->id]);
             }
 
             if ($payment->currency !== $currency) {
-                self::log('PayPal return: Currency mismatch', 'error');
+                self::log('Currency mismatch', 'error');
                 return redirect()->route('payment.cancel', ['payment' => $payment->id]);
             }
 
@@ -107,39 +109,20 @@ class PayPalRest implements PaymentGatewayInterface
                 $payment->completed($payment->id, $response->json());
                 return redirect()->route('payment.success', ['payment' => $payment->id]);
             } else {
-                self::log('PayPal return: Amount mismatch', 'error');
+                self::log('Amount mismatch', 'error');
                 return redirect()->route('payment.cancel', ['payment' => $payment->id]);
             }
         }
 
-        self::log('PayPal return: Payment verification failed: ' . $response->body(), 'error');
+        self::log('Payment verification failed: ' . $response->body(), 'error');
         return redirect()->route('dashboard')->with('error', 'Payment verification failed');
     }
 
     private static function getAccessToken(Gateway $gateway): ?string
     {
         $apiUrl = self::getApiUrl($gateway) . '/v1/oauth2/token';
-        $response = Http::withBasicAuth($gateway->config['client_id'], $gateway->config['client_secret'])
-            ->asForm()->post($apiUrl, ['grant_type' => 'client_credentials']);
-
-        if ($response->successful()) {
-            return $response['access_token'] ?? null;
-        }
-
-        self::log('Error obtaining access token: ' . $response->body(), 'error');
-        return null;
-    }
-
-    public static function checkSubscription(Gateway $gateway, $subscriptionId): bool
-    {
-        // Not supported
-        return false;
-    }
-
-    public static function processRefund(Payment $payment, array $data): void
-    {
-        // Implement refund logic if required
-        self::log('Refund processing is not yet implemented.', 'info');
+        $response = self::sendHttpRequest('POST', $apiUrl, ['grant_type' => 'client_credentials'], $gateway->config['client_id'] . ':' . $gateway->config['client_secret']);
+        return $response->successful() ? $response['access_token'] ?? null : null;
     }
 
     public static function endpoint(): string
@@ -167,10 +150,5 @@ class PayPalRest implements PaymentGatewayInterface
                 'refund_support' => false,
             ],
         ];
-    }
-
-    protected static function log(string $message, string $level = 'info'): void
-    {
-        ErrorLog("PayPalRest", $message, $level);
     }
 }

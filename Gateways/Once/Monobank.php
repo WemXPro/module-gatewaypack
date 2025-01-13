@@ -6,17 +6,19 @@ use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
 use App\Models\Payment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Modules\GatewayPack\Traits\CommonPaymentGateway;
 
 class Monobank implements PaymentGatewayInterface
 {
+    use CommonPaymentGateway;
+
     public static function processGateway(Gateway $gateway, Payment $payment)
     {
         $amount = $payment->amount;
         if (self::setWebhook($gateway)) {
             $params = '?a=' . $amount . '&t=' . $payment->id;
             $redirectUrl = $gateway->config['banka_url'] . $params;
-             return redirect()->away($redirectUrl);
+            return redirect()->away($redirectUrl);
         }
         self::log('Error create webhook', 'error');
         return redirect()->route('payment.cancel', ['payment' => $payment->id]);
@@ -24,12 +26,12 @@ class Monobank implements PaymentGatewayInterface
 
     public static function returnGateway(Request $request): void
     {
-        // Checking the availability of the necessary data in the request
         $data = $request->all();
         if (!isset($data['type'])) {
             return;
         }
-        if (strtolower($data['type']) == 'statementitem') {
+
+        if (strtolower($data['type']) === 'statementitem') {
             if (!isset($data['data']['statementItem'])) {
                 return;
             }
@@ -39,13 +41,13 @@ class Monobank implements PaymentGatewayInterface
                 return;
             }
 
-            // Skip processing if the amount is negative
             if ($statementItem['amount'] < 0) {
                 return;
             }
 
             $paymentId = $statementItem['comment'];
             $amount = $statementItem['amount'];
+
             try {
                 $payment = Payment::findOrFail($paymentId);
             } catch (\Exception $e) {
@@ -65,20 +67,12 @@ class Monobank implements PaymentGatewayInterface
     {
         $url = 'https://api.monobank.ua/personal/webhook';
         $data = [
-            'webHookUrl' => route('payment.return', ['gateway' => $gateway->endpoint]),
+            'webHookUrl' => self::getReturnUrl(),
         ];
-        $response = Http::withHeaders(['X-Token' => $gateway->config['token'],])->post($url, $data);
-        return $response->status() === 200;
-    }
 
-    public static function checkSubscription(Gateway $gateway, $subscriptionId): bool
-    {
-        // Not supported
-        return false;
-    }
-    public static function processRefund(Payment $payment, array $data)
-    {
-        // Not supported
+        $response = self::sendHttpRequest('POST', $url, $data, $gateway->config['token']);
+
+        return $response->status() === 200;
     }
     public static function endpoint(): string
     {
@@ -103,9 +97,5 @@ class Monobank implements PaymentGatewayInterface
                 'blade_edit_path' => 'gatewaypack::monobank',
             ],
         ];
-    }
-    protected static function log(string $message, string $level = 'info'): void
-    {
-        ErrorLog("Monobank", $message, $level);
     }
 }
