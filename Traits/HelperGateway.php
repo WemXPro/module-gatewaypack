@@ -8,6 +8,25 @@ use Illuminate\Support\Facades\Http;
 
 trait HelperGateway
 {
+    public static function drivers(): array
+    {
+        $driver = basename(str_replace('\\', '/', static::class)) . '_' . 'GatewayPack';
+        return [
+            $driver => [
+                'driver' => $driver,
+                'type' => self::$type ?? 'once',
+                'class' => self::class,
+                'endpoint' => self::endpoint(),
+                'refund_support' => self::$refund_support ?? false,
+                'blade_edit_path' =>  self::$blade_helper_file ?? null,
+            ],
+        ];
+    }
+
+    public static function endpoint(): string
+    {
+        return self::$endpoint;
+    }
 
     protected static function getGatewayByEndpoint(): Gateway
     {

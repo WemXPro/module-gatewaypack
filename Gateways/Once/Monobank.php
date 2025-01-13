@@ -14,30 +14,18 @@ class Monobank implements PaymentGatewayInterface
 
     public static string $webhookUrl = 'https://api.monobank.ua/personal/webhook';
 
-    public static function endpoint(): string
-    {
-        return 'monobank';
-    }
+    public static string $endpoint = 'monobank';
+
+    public static string $type = 'once';
+
+    public static bool $refund_support = false;
+    public static string $blade_helper_file = 'gatewaypack::monobank';
 
     public static function getConfigMerge(): array
     {
         return [
             'token' => '',
             'banka_url' => '',
-        ];
-    }
-
-    public static function drivers(): array
-    {
-        return [
-            'MonoBank' => [
-                'driver' => 'MonoBank',
-                'type' => 'once',
-                'class' => self::class,
-                'endpoint' => self::endpoint(),
-                'refund_support' => false,
-                'blade_edit_path' => 'gatewaypack::monobank',
-            ],
         ];
     }
 
@@ -50,7 +38,7 @@ class Monobank implements PaymentGatewayInterface
             return redirect()->away($redirectUrl);
         }
         self::log('Error create webhook', 'error');
-        return self::getCancelUrl($payment);
+        return redirect(self::getCancelUrl($payment));
     }
 
     public static function returnGateway(Request $request): void

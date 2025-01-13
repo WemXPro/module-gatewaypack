@@ -15,10 +15,11 @@ class PayPalRest implements PaymentGatewayInterface
     public static string $apiUrl = 'https://api.paypal.com';
     public static string $sandboxUrl = 'https://api.sandbox.paypal.com';
 
-    public static function endpoint(): string
-    {
-        return 'paypal-rest';
-    }
+    public static string $endpoint = 'paypal-rest';
+
+    public static string $type = 'once';
+
+    public static bool $refund_support = false;
 
     public static function getConfigMerge(): array
     {
@@ -26,19 +27,6 @@ class PayPalRest implements PaymentGatewayInterface
             'client_id' => '',
             'client_secret' => '',
             'test_mode' => true,
-        ];
-    }
-
-    public static function drivers(): array
-    {
-        return [
-            'PayPalRest' => [
-                'driver' => 'PayPalRest',
-                'type' => 'once',
-                'class' => self::class,
-                'endpoint' => self::endpoint(),
-                'refund_support' => false,
-            ],
         ];
     }
 
@@ -52,7 +40,7 @@ class PayPalRest implements PaymentGatewayInterface
 
         if (!$token) {
             self::log('Error obtaining access token', 'error');
-            return self::getCancelUrl($payment);
+            return redirect(self::getCancelUrl($payment));
         }
 
         $payload = [
@@ -82,7 +70,7 @@ class PayPalRest implements PaymentGatewayInterface
         }
 
         self::log('Error creating PayPal payment: ' . $response->body(), 'error');
-        return self::getCancelUrl($payment);
+        return redirect(self::getCancelUrl($payment));
     }
 
     public static function returnGateway(Request $request)
@@ -114,25 +102,25 @@ class PayPalRest implements PaymentGatewayInterface
 
             if (!$payment) {
                 self::log('Payment not found', 'error');
-                return self::getCancelUrl($payment);
+                return redirect(self::getCancelUrl($payment));
             }
 
             if ($payment->status === 'paid') {
                 self::log('Payment already completed', 'info');
-                return self::getSucceedUrl($payment);
+                return redirect(self::getSucceedUrl($payment));
             }
 
             if ($payment->currency !== $currency) {
                 self::log('Currency mismatch', 'error');
-                return self::getCancelUrl($payment);
+                return redirect(self::getCancelUrl($payment));
             }
 
             if ((float) $payment->amount === (float) $amount) {
                 $payment->completed($payment->id, $response->json());
-                return self::getSucceedUrl($payment);
+                return redirect(self::getSucceedUrl($payment));
             } else {
                 self::log('Amount mismatch', 'error');
-                return self::getCancelUrl($payment);
+                return redirect(self::getCancelUrl($payment));
             }
         }
 
@@ -151,6 +139,4 @@ class PayPalRest implements PaymentGatewayInterface
         $response = self::sendHttpRequest('POST', $apiUrl, ['grant_type' => 'client_credentials'], $gateway->config['client_id'] . ':' . $gateway->config['client_secret']);
         return $response->successful() ? $response['access_token'] ?? null : null;
     }
-
-
 }

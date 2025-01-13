@@ -12,32 +12,21 @@ class Paysafecard implements PaymentGatewayInterface
 {
     use HelperGateway;
 
-    public static string $apiUrl = 'https://api.paysafecard.com';
-    public static string $sandboxUrl = 'https://apitest.paysafecard.com';
+    public static string $apiUrl = 'https://api.paysafe.com/paymenthub';
+    public static string $sandboxUrl = 'https://api.test.paysafe.com/paymenthub';
 
-    public static function endpoint(): string
-    {
-        return 'paysafecard';
-    }
+    public static string $endpoint = 'paysafecard';
+
+    public static string $type = 'once';
+
+    public static bool $refund_support = false;
 
     public static function getConfigMerge(): array
     {
         return [
+            'api_username' => '',
             'api_key' => '',
             'test_mode' => true,
-        ];
-    }
-
-    public static function drivers(): array
-    {
-        return [
-            'Paysafecard' => [
-                'driver' => 'Paysafecard',
-                'type' => 'once',
-                'class' => self::class,
-                'endpoint' => self::endpoint(),
-                'refund_support' => false,
-            ],
         ];
     }
 
@@ -47,7 +36,7 @@ class Paysafecard implements PaymentGatewayInterface
         $currency = $payment->currency;
 
         $url = self::getApiUrl($gateway) . '/v1/payments';
-        $token = $gateway->config['api_key'];
+        $token = self::generateAuthorizationToken($gateway);
 
         $payload = [
             'amount' => [
@@ -67,12 +56,14 @@ class Paysafecard implements PaymentGatewayInterface
 
         $response = self::sendHttpRequest('POST', $url, $payload, $token);
 
+//        dd($response->json());
         if ($response->successful() && isset($response['redirect']['auth_url'])) {
             return redirect()->away($response['redirect']['auth_url']);
         }
 
-        self::log('Error creating Paysafecard payment: ' . $response->body(), 'error');
-        return self::getCancelUrl($payment);
+        $errorBody = $response->json();
+        self::log('Error creating Paysafecard payment: ' . json_encode($errorBody), 'error');
+        return redirect(self::getCancelUrl($payment));
     }
 
     public static function returnGateway(Request $request)
@@ -83,11 +74,11 @@ class Paysafecard implements PaymentGatewayInterface
 
         if (!$payment) {
             self::log('Missing parameters', 'error');
-            return self::getCancelUrl($payment);
+            return redirect(self::getCancelUrl($payment));
         }
 
         $apiUrl = self::getApiUrl($gateway) . '/v1/payments/' . $paymentId;
-        $token = $gateway->config['api_key'];
+        $token = self::generateAuthorizationToken($gateway);
 
         $response = self::sendHttpRequest('GET', $apiUrl, [], $token);
 
@@ -97,13 +88,13 @@ class Paysafecard implements PaymentGatewayInterface
             if ($status === 'SUCCESS') {
                 if ($payment->status === 'paid') {
                     self::log('Payment already paid', 'info');
-                    return self::getSucceedUrl($payment);
+                    return redirect(self::getSucceedUrl($payment));
                 }
                 $payment->completed($payment->id, $response->json());
-                return self::getSucceedUrl($payment);
+                return redirect(self::getSucceedUrl($payment));
             } else {
                 self::log('Payment failed with status ' . $status, 'error');
-                return self::getCancelUrl($payment);
+                return redirect(self::getCancelUrl($payment));
             }
         }
 
@@ -113,7 +104,18 @@ class Paysafecard implements PaymentGatewayInterface
 
     private static function getApiUrl(Gateway $gateway): string
     {
-        return $gateway->config['test_mode'] ? self::$sandboxUrl : self::$apiUrl;
+        return filter_var($gateway->config['test_mode'], FILTER_VALIDATE_BOOLEAN) ? self::$sandboxUrl : self::$apiUrl;
     }
 
+    private static function generateAuthorizationToken(Gateway $gateway): string
+    {
+        $username = $gateway->config['api_username'];
+        $apiKey = $gateway->config['api_key'];
+
+        if (empty($username) || empty($apiKey)) {
+            throw new \Exception('API username or API key is missing.');
+        }
+
+        return 'Basic ' . base64_encode("$username:$apiKey");
+    }
 }
