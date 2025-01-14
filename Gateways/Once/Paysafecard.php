@@ -7,6 +7,7 @@ use App\Models\Gateways\PaymentGatewayInterface;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Modules\GatewayPack\Traits\HelperGateway;
+use Illuminate\Support\Facades\Http;
 
 class Paysafecard implements PaymentGatewayInterface
 {
@@ -16,9 +17,7 @@ class Paysafecard implements PaymentGatewayInterface
     public static string $sandboxUrl = 'https://api.test.paysafe.com/paymenthub';
 
     public static string $endpoint = 'paysafecard';
-
     public static string $type = 'once';
-
     public static bool $refund_support = false;
 
     public static function getConfigMerge(): array
@@ -32,38 +31,63 @@ class Paysafecard implements PaymentGatewayInterface
 
     public static function processGateway(Gateway $gateway, Payment $payment)
     {
-        $amount = $payment->amount;
-        $currency = $payment->currency;
+        $paymentHandleToken = self::generatePaymentHandleToken($gateway, $payment);
 
         $url = self::getApiUrl($gateway) . '/v1/payments';
         $token = self::generateAuthorizationToken($gateway);
 
         $payload = [
-            'amount' => [
-                'value' => number_format($amount, 2, '.', ''),
-                'currency' => $currency,
-            ],
-            'redirect' => [
-                'success_url' => self::getSucceedUrl($payment),
-                'failure_url' => self::getCancelUrl($payment),
-            ],
-            'customer' => [
-                'id' => $payment->user_id,
-                'email' => $payment->user->email ?? 'unknown@example.com',
-            ],
-            'correlation_id' => $payment->id,
+            "merchantRefNum" => (string)$payment->id,
+            "amount" => (int)($payment->amount * 100),
+            "currencyCode" => $payment->currency,
+            "paymentHandleToken" => $paymentHandleToken,
+            "description" => "Payment for order #" . $payment->id,
         ];
 
-        $response = self::sendHttpRequest('POST', $url, $payload, $token);
+        $response = self::sendHttpRequest('POST', $url, $payload, headers: [
+            'Content-Type' => 'application/json',
+            'Authorization' => $token,
+        ]);
 
-//        dd($response->json());
-        if ($response->successful() && isset($response['redirect']['auth_url'])) {
-            return redirect()->away($response['redirect']['auth_url']);
+        if ($response->successful() && isset($response['links'])) {
+            $checkoutLink = collect($response->json()['links'])->firstWhere('rel', 'approval_url')['href'];
+            return redirect()->away($checkoutLink);
         }
 
         $errorBody = $response->json();
         self::log('Error creating Paysafecard payment: ' . json_encode($errorBody), 'error');
         return redirect(self::getCancelUrl($payment));
+    }
+
+    private static function generatePaymentHandleToken(Gateway $gateway, Payment $payment): string
+    {
+        $url = self::getApiUrl($gateway) . '/v1/paymenthandles';
+        $token = self::generateAuthorizationToken($gateway);
+
+        $payload = [
+            "merchantRefNum" => (string)$payment->id,
+            "transactionType" => "PAYMENT",
+            "amount" => (int)($payment->amount * 100),
+            "currencyCode" => $payment->currency,
+            "paymentType" => "PAYSAFECARD",
+            "redirect" => [
+                "success" => self::getReturnUrl(),
+                "failure" => self::getCancelUrl($payment),
+            ],
+        ];
+
+        $response = Http::withHeaders([
+            'Authorization' => $token,
+            'Content-Type' => 'application/json',
+        ])->post($url, $payload);
+
+//        dd($response->json());
+        if ($response->successful() && isset($response['paymentHandleToken'])) {
+            return $response->json()['paymentHandleToken'];
+        }
+
+        self::log('Error creating payment handle: ' . $response->body(), 'error');
+        throw new \Exception('Failed to create payment handle: ' . $response->body());
     }
 
     public static function returnGateway(Request $request)
@@ -111,11 +135,12 @@ class Paysafecard implements PaymentGatewayInterface
     {
         $username = $gateway->config['api_username'];
         $apiKey = $gateway->config['api_key'];
-
-        if (empty($username) || empty($apiKey)) {
-            throw new \Exception('API username or API key is missing.');
-        }
-
         return 'Basic ' . base64_encode("$username:$apiKey");
+    }
+
+    protected static function sendHttpRequest(string $method, string $url, array $data = [], ?string $token = null, array $headers = [])
+    {
+        $request = Http::withHeaders($headers);
+        return $method === 'POST' ? $request->post($url, $data) : $request->get($url);
     }
 }
