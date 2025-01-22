@@ -4,7 +4,6 @@ namespace Modules\GatewayPack\Entities;
 
 use Modules\GatewayPack\Gateways\Once\Monobank;
 use Modules\GatewayPack\Gateways\Once\PayPalRest;
-use Modules\GatewayPack\Gateways\Once\Paysafecard;
 
 class GatewayPack
 {

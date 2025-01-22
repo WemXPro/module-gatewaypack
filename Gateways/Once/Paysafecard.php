@@ -6,8 +6,8 @@ use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
 use App\Models\Payment;
 use Illuminate\Http\Request;
-use Modules\GatewayPack\Traits\HelperGateway;
 use Illuminate\Support\Facades\Http;
+use Modules\GatewayPack\Traits\HelperGateway;
 
 class Paysafecard implements PaymentGatewayInterface
 {
