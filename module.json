@@ -1,13 +1,17 @@
 {
     "name": "GatewayPack",
     "alias": "gatewaypack",
-    "description": "Gateway Pack",
+    "description": "GatewayPack is a module that allows you to manage your gateways.",
     "keywords": [],
     "priority": 0,
     "providers": [
         "Modules\\GatewayPack\\Providers\\GatewayPackServiceProvider"
     ],
     "files": [],
-    "type": "gateway",
-    "class": "Modules\\GatewayPack\\Entities\\GatewayPack"
+    "type": "module",
+    "class": "Modules\\GatewayPack\\Entities\\GatewayPack",
+    "icon": "https://ibb.co/Mn9dDRt",
+    "author": "GIGABAIT",
+    "version": "1.0.2",
+    "wemx_version": ">=2.0.0"
 }
