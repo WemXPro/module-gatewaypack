@@ -81,7 +81,6 @@ class Paysafecard implements PaymentGatewayInterface
             'Content-Type' => 'application/json',
         ])->post($url, $payload);
 
-//        dd($response->json());
         if ($response->successful() && isset($response['paymentHandleToken'])) {
             return $response->json()['paymentHandleToken'];
         }
