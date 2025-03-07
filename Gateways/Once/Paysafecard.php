@@ -4,10 +4,10 @@ namespace Modules\GatewayPack\Gateways\Once;
 
 use App\Models\Gateways\Gateway;
 use App\Models\Gateways\PaymentGatewayInterface;
-use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Modules\GatewayPack\Traits\HelperGateway;
+use Payment;
 
 class Paysafecard implements PaymentGatewayInterface
 {

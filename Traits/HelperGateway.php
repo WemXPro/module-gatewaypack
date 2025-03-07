@@ -3,7 +3,7 @@
 namespace Modules\GatewayPack\Traits;
 
 use App\Models\Gateways\Gateway;
-use App\Models\Payment;
+use Payment;
 use Illuminate\Support\Facades\Http;
 
 trait HelperGateway
